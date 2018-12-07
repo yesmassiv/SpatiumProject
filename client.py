@@ -1,11 +1,11 @@
-#Импорт скриптов
+# Импорт скриптов
 import db
 import core
 import truechecker
 import firewalloff
 import portforwardlib
 
-#Импорт модулей
+# Импорт модулей
 import json
 import os
 import sys
@@ -14,38 +14,41 @@ import threading
 import pickle
 import time
 
-#Библиотека для получения реального айпи через интернет в случае ошибки с UPnP устройством(просто медленнее будет)
+# Библиотека для получения реального айпи через интернет в случае ошибки с UPnP устройством(просто медленнее будет)
 from requests import get
-
-#берём адрес хоста
-host = portforwardlib.get_my_ip()
-
-#firewalloff.offer()
-firewalloff.redirectport(host)
 
 print('Получение IP из api.ipify.org...')
 real_host = get('https://api.ipify.org').text
+
+# берём адрес хоста
+host = portforwardlib.get_my_ip()
+if str(real_host) == str(host):
+    print("Проброс портов не нжуен.")
+else:
+    # firewalloff.offer()
+    firewalloff.redirectport(host)
 
 try:
     import readline
 except ImportError:
     import pyreadline as readline
-import re,requests
+import re, requests
 
 lock = threading.Lock()
-#инициализируем массив для сохранения входящих клиентов
+# инициализируем массив для сохранения входящих клиентов
 clients = []
-#список "стартовых" нод. |||Сделал по больше, для запаса|||
+# список "стартовых" нод. |||Сделал по больше, для запаса|||
 base_node = [
-            ('95.179.166.136', 9090),
-            ('185.159.82.212', 9090),
-            ('192.168.1.65', 9090),
-            ('192.168.1.66', 9090),
-            ('192.168.1.89', 9090),
-            ('95.27.183.90', 9090),
-            ('188.32.96.6', 9090)]
+    ('95.179.166.136', 9090),
+    ('185.159.82.212', 9090),
+    ('192.168.1.65', 9090),
+    ('192.168.1.66', 9090),
+    ('192.168.1.89', 9090),
+    ('95.27.183.90', 9090),
+    ('188.32.96.6', 9090),
+	('88.204.103.137', 9090)]
 
-#Удаляет из базовых узлов, свой ip если найдёт его
+# Удаляет из базовых узлов, свой ip если найдёт его
 for node in base_node:
     for addr in node:
         if addr == real_host:
@@ -53,12 +56,12 @@ for node in base_node:
 
 nodes = "node.json"
 shutdown = False
-#инициализация сокет-объекта
-#s1=входящий сокет
+# инициализация сокет-объекта
+# s1=входящий сокет
 s1 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s1.bind((host, 9090))
 s1.setblocking(0)
-#s2=исходящий сокет
+# s2=исходящий сокет
 s2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s2.bind((host, 0))
 s2.setblocking(0)
@@ -66,12 +69,17 @@ s2.setblocking(0)
 client_status = 0
 exit = 0
 
+
 def get_config(data):
     if data == "wallet":
-        return str("test"+str(host))
-#коневртация в байты
+        return str("test" + str(host))
+
+
+# коневртация в байты
 def ttb(string):
     return bytes(string, encoding='utf-8')
+
+
 def check_user(ip):
     print('Проверка клиентов...')
     global clients
@@ -84,35 +92,37 @@ def check_user(ip):
     if ip[0] == host:
         check = 1
     try:
-        #Наше спасительное условие от нежелательных реальных ip
-        #Исключение здесь на тот случай,
-        #если первое исключение не даст нам реальный ip, и real_host не существует
+        # Наше спасительное условие от нежелательных реальных ip
+        # Исключение здесь на тот случай,
+        # если первое исключение не даст нам реальный ip, и real_host не существует
         if ip[0] == real_host:
             check = 1
     except NameError:
         pass
-    
+
     if check == 0:
         clients.append(ip)
     else:
         pass
 
+
 def byte_to_string(bytes):
     return str(bytes.encode("utf-8"))
 
-#ассинхронный поток для принятия входящих сообщений
+
+# ассинхронный поток для принятия входящих сообщений
 def receving(sock):
-    global shutdown,exit
+    global shutdown, exit
     while shutdown == False:
         try:
             global clients
             while True:
-                #ниже обработка входящих сообщений
+                # ниже обработка входящих сообщений
                 all_data = bytearray()
                 while len(all_data) == 0:
                     try:
-                        #time.sleep(1)
-                        #print('Сокет {} прослушивает подключение...'.format(sock))
+                        # time.sleep(1)
+                        # print('Сокет {} прослушивает подключение...'.format(sock))
                         data, addr = sock.recvfrom(2048)
                         """
                         Фикс на статус, если данные удаётся получить, 
@@ -121,28 +131,29 @@ def receving(sock):
                         print('\nСвязь установлена!')
                         global client_status
                         client_status = 2
-                        #|||
+                        # |||
                         if addr[0] != host:
-                         check_user(addr)
+                            check_user(addr)
                         if not data:
                             break
                         all_data = all_data + data
                     except:
                         pass
                 if addr[0] != host:
-                 print("Запрос от "+str(addr) + " " + str(data.decode("utf-8")))
-                 data = data.decode("utf-8")
-                 data = data.split("::")
-                 threading.Thread(target=sort_data, args=(data, addr,sock,)).start()
+                    print("Запрос от " + str(addr) + " " + str(data.decode("utf-8")))
+                    data = data.decode("utf-8")
+                    data = data.split("::")
+                    threading.Thread(target=sort_data, args=(data, addr, sock,)).start()
         except KeyboardInterrupt:
             shutdown = True
         except:
             pass
     exit = 1
 
-#Здесь обработка входящего сообщения (ассинхронный процесс)
-def sort_data(data,addr,sock):
-    global clients,c
+
+# Здесь обработка входящего сообщения (ассинхронный процесс)
+def sort_data(data, addr, sock):
+    global clients, c
     if data[0] == "new_event":
         db.check_event(data)
     elif data[0] == "check_db":
@@ -153,7 +164,7 @@ def sort_data(data,addr,sock):
         else:
             table = "peers::"
             for i in clients:
-             table= str(table + str(i) + ",,")
+                table = str(table + str(i) + ",,")
             sock.sendto(ttb(table), addr)
     elif data[0] == "peers":
         if data[1] == "None":
@@ -164,16 +175,16 @@ def sort_data(data,addr,sock):
             new_list = list.split(",,")
             for i in new_list:
                 if i not in clients:
-                 check_user(eval(i))
+                    check_user(eval(i))
         next_connection(sock)
-        
+
     elif data[0] == "ping":
         sock.sendto(bytes("pong::", encoding='utf-8'), addr)
-    
-    #Если придёт данный запрос, сообщить клиенту: Я здесь!
+
+    # Если придёт данный запрос, сообщить клиенту: Я здесь!
     elif data[0] == "check_connect":
         sock.sendto(bytes("here::", encoding='utf-8'), addr)
-    
+
     elif data[0] == "here":
         global room
         room += 1
@@ -184,14 +195,14 @@ def sort_data(data,addr,sock):
 
     elif data[0] == "pong":
         c = 1
-        sock.sendto(ttb("get_peers::"),addr)
+        sock.sendto(ttb("get_peers::"), addr)
         if addr not in clients:
             print('Добавлен', addr)
             clients.append(addr)
     elif data[0] == "pingg":
-        sock.sendto(ttb("pongg::"),addr)
+        sock.sendto(ttb("pongg::"), addr)
     elif data[0] == "quit":
-        #Если реальный хост присутствуют в клиентах
+        # Если реальный хост присутствуют в клиентах
         for address, poort in clients:
             if addr[0] == address:
                 a = (address, poort)
@@ -204,35 +215,37 @@ def sort_data(data,addr,sock):
 
 def next_connection(sock):
     for i in clients:
-       if type(i) == tuple:
-        # проходим стартовые ноды, если нету клиентов
-        text = bytes("pingg::", encoding='utf-8')
-        sock.sendto(text, i)
+        if type(i) == tuple:
+            # проходим стартовые ноды, если нету клиентов
+            text = bytes("pingg::", encoding='utf-8')
+            sock.sendto(text, i)
     print("Инициализация закончена!")
 
-#процедура первого подключения при старте (нужно доделать)
+
+# процедура первого подключения при старте (нужно доделать)
 def init_connection(sock):
     try:
         f = open(nodes)
         ff = f.readlines()
-        #ff=список с нодами
+        # ff=список с нодами
         for i in ff:
             try:
-                sock.sendto(bytes("ping::",encoding='utf-8'), i)
+                sock.sendto(bytes("ping::", encoding='utf-8'), i)
                 break
             except Exception:
                 pass
     except FileNotFoundError:
         for i in base_node:
             # проходим стартовые ноды, если нету клиентов
-            if i[0] != host and  i[0] != 'localhost' and i[0] != '':
+            if i[0] != host and i[0] != 'localhost' and i[0] != '':
                 text = bytes("ping::", encoding='utf-8')
                 try:
                     sock.sendto(text, i)
                 except:
                     print('Не удалось отправить ping.')
 
-#конвертация unix timestamp в формат обычной даты
+
+# конвертация unix timestamp в формат обычной даты
 def date(timestamp):
     import datetime
     return (
@@ -241,7 +254,8 @@ def date(timestamp):
         ).strftime('%Y-%m-%d %H:%M:%S')
     )
 
-#инициализирующая функция. сюда добавлять процедуры, которые нужно выполнить на старте программы.
+
+# инициализирующая функция. сюда добавлять процедуры, которые нужно выполнить на старте программы.
 def init():
     global client_status
     try:
@@ -259,6 +273,7 @@ def init():
         print(e)
         pass
 
+
 def get_status():
     if client_status == 0:
         return "Оффлайн"
@@ -266,6 +281,7 @@ def get_status():
         return "Поиск пиров..."
     elif client_status == 2:
         return "Подключен к сети"
+
 
 """
 ----------------------------------------------------------------------------------------------------
@@ -283,17 +299,17 @@ while exitt == 0:
         print("Статус клиента: %s" % str(get_status()))
         print("IP: {0}".format(host))
         try:
-            #Попытка вывести реальный ip если он найден.
+            # Попытка вывести реальный ip если он найден.
             print("Real IP: {0}".format(real_host))
         except NameError:
             pass
 
-        #|||Сделал для удобства и юольшей читабельности. Добавлен 5 пункт который прописан ниже.|||
-        message = "1.Отправить сообщение\n" +\
-                  "2.Посмотреть последнюю транзакцию\n" +\
-                  "3.Посмотреть историю транзакций\n" +\
-                  "4.Посмотреть список клиентов\n" +\
-                  "5.Проверить последнюю транзакцию\n" +\
+        # |||Сделал для удобства и юольшей читабельности. Добавлен 5 пункт который прописан ниже.|||
+        message = "1.Отправить сообщение\n" + \
+                  "2.Посмотреть последнюю транзакцию\n" + \
+                  "3.Посмотреть историю транзакций\n" + \
+                  "4.Посмотреть список клиентов\n" + \
+                  "5.Проверить последнюю транзакцию\n" + \
                   "6.Проверить подключение к сети\n"
 
         choose = input(message + ': ')
@@ -316,9 +332,9 @@ while exitt == 0:
         elif choose == "2":
             last_tx = db.get_last_transaction()
             if last_tx is not None:
-             print(
-                "Последняя транзакция:\nid {0}\nОт кого: {1}\nсообщение: {2}\nКому: {3}\nДата: {4}\n----------------\n".format(
-                    last_tx[0], last_tx[1], last_tx[2], last_tx[3], date(last_tx[4])))
+                print(
+                    "Последняя транзакция:\nid {0}\nОт кого: {1}\nсообщение: {2}\nКому: {3}\nДата: {4}\n----------------\n".format(
+                        last_tx[0], last_tx[1], last_tx[2], last_tx[3], date(last_tx[4])))
             else:
                 print("Транзакций не найдено!")
         elif choose == "3":
@@ -332,7 +348,7 @@ while exitt == 0:
             for i in clients:
                 print("\n-------\n{0}".format(i))
 
-        #|||Проверка истинности последней транзакции начинается здесь.|||
+        # |||Проверка истинности последней транзакции начинается здесь.|||
         elif choose == "5":
             last_tx = db.get_last_transaction()
             if last_tx is not None:
@@ -341,16 +357,16 @@ while exitt == 0:
                 truechecker.send_request(clients, host)
             else:
                 print("Транзакций не найдено!")
-        
-        #Проверка подключения.
-        #Достаточно ли в сети к которой мы подключены клиентов?
+
+        # Проверка подключения.
+        # Достаточно ли в сети к которой мы подключены клиентов?
         elif choose == "6":
-            global room 
+            global room
             room = 0
             for node in clients:
-                #Отправляем запрос на проверку подключения к сети каждому в списке клиентов.
-                s1.sendto(bytes("check_connect::",encoding='utf-8'), node)
-            
+                # Отправляем запрос на проверку подключения к сети каждому в списке клиентов.
+                s1.sendto(bytes("check_connect::", encoding='utf-8'), node)
+
 
     except KeyboardInterrupt:
         print("Вы действительно хотите выйти? Y/n")
@@ -370,11 +386,7 @@ while exitt == 0:
                     pass
             s1.close()
             s2.close()
+            print(firewalloff.close_port(host))
             print("2")
             exit = 1
-            print("3")
-            time.sleep(2)
-            print("4")
-            while exit == 0:
-                pass
             sys.exit(0)

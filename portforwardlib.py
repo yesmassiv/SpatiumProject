@@ -33,15 +33,16 @@ def discover():
                     "ST: %s\r\n" % (SSDP_ST, ) + "\r\n"
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setblocking(0)
+    #sock.setblocking(0)
     sock.sendto(ssdpRequest.encode(), (SSDP_ADDR, SSDP_PORT))
     time.sleep(WAIT)
     paths = []
-    for _ in range(10):
+    data = bytearray()
+    while len(data) == 0:
         try:
             data, fromaddr = sock.recvfrom(1024)
-            #ip = fromaddr[0]
-            #print "from ip: %s"%ip
+            ip = fromaddr[0]
+            #print("from ip: %s"%ip)
             parsed = re.findall(r'(?P<name>.*?): (?P<value>.*?)\r\n', str(data,'utf-8'))
 
             # get the location header
@@ -51,9 +52,13 @@ def discover():
             router_path = location[0][1]
             paths.append(router_path)
 
-        except socket.error:
-            '''no data yet'''
-            break
+        except socket.error as e:
+            print('''no data yet''')
+            print(e)
+            pass
+        time.sleep(0.1)
+    print(len(paths))
+    print("Path: {0}".format(paths))
     return paths
 
 
@@ -186,9 +191,21 @@ def forwardPort(eport, iport, router, lanip, disable, protocol, time, descriptio
 
     if verbose:
         print("Обнаружение маршрутизаторов...")
-
-    res = discover()
-
+    res = []
+    try:
+        with open('route.txt') as f:
+            lines = f.read()
+            
+            if len(lines) < 1:
+                print('error')
+            else:
+                res = [lines]
+    except FileNotFoundError or EOFError:
+        print('error')
+        res = discover()
+        with open('route.txt','wt') as f:
+            f.write(res[0])
+    print("Роутер найден!")
 
     allok = True
     for path in res:
@@ -214,9 +231,11 @@ def forwardPort(eport, iport, router, lanip, disable, protocol, time, descriptio
 
             if verbose:
                 print(("%sПорт перенаправлен: %s успешно, %s -> %s:%s"%(dis,routerip, eport,localip,iport)))
+                print("Пытаюсь выключить порт...")
         else:
             sys.stderr.write("%sПеренаправление на %s произошло с ошибкой, статус=%s сообщение=%s\n"%(dis,routerip,status,message))
             allok = False
+
 
 
     return allok

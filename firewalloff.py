@@ -3,6 +3,7 @@
 import subprocess
 import os
 import portforwardlib
+import time
 
 try:
     def offer():
@@ -22,6 +23,24 @@ except:
 try:
     protocol = 'UDP'
     def redirectport(ip):
-        result = portforwardlib.forwardPort(9090, 9090, None, ip, False, protocol, 0, 'SpatiumBlockNetwor({})'.format(protocol), True)
+        result = None
+        while result == None:
+         #try:
+          result = portforwardlib.forwardPort(9090, 9090, None, ip, False, protocol, 0, 'SpatiumBlockNetwor({})'.format(protocol), True)
+         #except:
+            # pass
+          time.sleep(0.3)
 except:
     print('Ошибка при перенаправлении портов.')
+
+def close_port(ip):
+    result = None
+    while result == None:
+        try:
+            result = portforwardlib.forwardPort(9090, 9090, None, ip, False, protocol, 1,
+                                                'SpatiumBlockNetwor({})'.format(protocol), False)
+            print(result)
+        except Exception as e:
+            print(e)
+            pass
+        time.sleep(0.3)
